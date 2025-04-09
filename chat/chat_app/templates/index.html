@@ -214,7 +214,8 @@ window.addEventListener("resize", () => {
   matrixCanvas.height = window.innerHeight;
 });
 
-    const socket = new WebSocket("ws://" + window.location.host + "/ws/chat_app/");
+    const socket = new WebSocket(`wss://${window.location.host}/ws/chat_app/`);
+
     let myUserId = null;
     const userColors = {};
     let messageQueue = [];
