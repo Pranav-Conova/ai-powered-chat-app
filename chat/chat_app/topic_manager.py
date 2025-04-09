@@ -3,38 +3,39 @@ import time
 import google.generativeai as genai
 import asyncio
 import random
+from django.conf import settings
 from channels.layers import get_channel_layer
 
-genai.configure(api_key="AIzaSyDnmUhJwoif1cC6WL_ZV8dsFdpQ1oaLBkI")
+current_topic = "Welcome to the chatroom!"
+recent_topics = set()
 
-current_topic = "Welcome to the chatroom!"  # default fallback topic
-recent_topics = set()  # store recent topics to avoid repetition
+configured = False
 
 def generate_topic():
-    global recent_topics
+    global recent_topics, configured
+
+    if not configured:
+        genai.configure(api_key=settings.API_KEY)
+        configured = True
 
     model = genai.GenerativeModel("gemini-2.0-flash-thinking-exp")
-
-    # Add randomness in the prompt
     randomness = random.randint(1000, 9999)
-    prompt = f"Suggest a unique futuristic group discussion topic. It must start with 'Topic:', be under 12 words, and avoid any symbols or numbers."
+    prompt = (
+        f"Suggest a unique futuristic group discussion topic. "
+        f"It must start with 'Topic:', be under 12 words, and avoid any symbols or numbers."
+    )
 
-
-    for _ in range(5):  # try up to 5 times to get a unique topic
+    for _ in range(5):
         response = model.generate_content(prompt)
         topic = response.text.strip()
 
-        # Avoid duplicates
         if topic not in recent_topics:
             recent_topics.add(topic)
-
-            # Keep recent_topics set small (e.g., max 20)
             if len(recent_topics) > 20:
                 recent_topics.pop()
-
             return topic
 
-    return "Let's discuss something new today!"  # fallback if all attempts fail
+    return "Let's discuss something new today!"
 
 async def broadcast_topic(new_topic):
     channel_layer = get_channel_layer()
@@ -59,13 +60,12 @@ def topic_updater():
             loop.run_until_complete(broadcast_topic(new_topic))
         except Exception as e:
             print("Error updating topic:", e)
-        time.sleep(60)  # wait for 1 minute
+        time.sleep(60)
 
 def start_topic_thread():
     thread = threading.Thread(target=topic_updater, daemon=True)
     thread.start()
 
-# chat_store.py
 chat_history = []
 
 def add_message(message, user_id):
